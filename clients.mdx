@@ -1,0 +1,68 @@
+---
+title: "客户端"
+description: "支持 MCP 集成的应用程序列表"
+---
+
+本页面概述了支持模型上下文协议 (MCP) 的应用程序。每个客户端可能支持不同的 MCP 功能，从而实现与 MCP 服务器不同程度的集成。
+
+## 功能支持对照表
+| 客户端                     | [资源] | [提示词] | [工具] | [采样] | 根源 | 说明                                             |
+|---------------------------|---------|----------|--------|--------|------|--------------------------------------------------|
+| [Claude 桌面应用][Claude]    | ✅      | ✅        | ✅     | ❌     | ❌    | 完整支持所有 MCP 功能                             |
+| [Zed][Zed]                | ❌      | ✅        | ❌     | ❌     | ❌    | 提示词以斜杠命令形式呈现                           |
+| [Sourcegraph Cody][Cody]  | ✅      | ❌        | ❌     | ❌     | ❌    | 通过 OpenCTX 支持资源                             |
+
+[Claude]: https://claude.ai/download
+[Zed]: https://zed.dev
+[Cody]: https://sourcegraph.com/cody
+[资源]: https://modelcontextprotocol.io/docs/concepts/resources
+[提示词]: https://modelcontextprotocol.io/docs/concepts/prompts
+[工具]: https://modelcontextprotocol.io/docs/concepts/tools
+[采样]: https://modelcontextprotocol.io/docs/concepts/sampling
+
+## 客户端详情
+
+### Claude 桌面应用
+Claude 桌面应用为 MCP 提供全面支持，实现与本地工具和数据源的深度集成。
+
+**主要功能：**
+- 完整支持资源功能，可附加本地文件和数据
+- 支持提示词模板
+- 工具集成，可执行命令和脚本
+- 本地服务器连接，提供更好的隐私和安全性
+
+> ⓘ 注意：Claude.ai 网页版目前不支持 MCP。MCP 功能仅在桌面应用中可用。
+
+### Zed
+[Zed](https://zed.dev/docs/assistant/model-context-protocol) 是一款集成 MCP 支持的高性能代码编辑器，专注于提示词模板和工具集成。
+
+**主要功能：**
+- 提示词模板以斜杠命令形式在编辑器中呈现
+- 工具集成，增强编码工作流
+- 与编辑器功能和工作区上下文紧密集成
+- 不支持 MCP 资源
+
+### Sourcegraph Cody
+[Cody](https://openctx.org/docs/providers/modelcontextprotocol) 是 Sourcegraph 的 AI 编程助手，通过 OpenCTX 实现 MCP。
+
+**主要功能：**
+- 支持 MCP 资源
+- 与 Sourcegraph 的代码智能集成
+- 使用 OpenCTX 作为抽象层
+- 计划未来支持更多 MCP 功能
+
+## 为应用添加 MCP 支持
+
+如果您已为应用添加了 MCP 支持，我们鼓励您提交拉取请求将其添加到此列表。MCP 集成可以为用户提供强大的上下文 AI 功能，使您的应用成为不断发展的 MCP 生态系统的一部分。
+
+添加 MCP 支持的好处：
+- 让用户能够使用自己的上下文和工具
+- 加入不断发展的可互操作 AI 应用生态系统
+- 为用户提供灵活的集成选项
+- 支持本地优先的 AI 工作流
+
+要开始在应用中实现 MCP，请查看我们的 [Python](https://github.com/modelcontextprotocol/python-sdk) 或 [TypeScript SDK 文档](https://github.com/modelcontextprotocol/typescript-sdk)
+
+## 更新和修正
+
+此列表由社区维护。如果您发现任何不准确之处，或想更新有关应用 MCP 支持的信息，请提交拉取请求或[在我们的文档仓库中提出问题](https://github.com/modelcontextprotocol/docs/issues)。

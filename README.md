@@ -1,32 +1,9 @@
-# Mintlify Starter Kit
+# 模型上下文协议文档
 
-Click on `Use this template` to copy the Mintlify starter kit. The starter kit contains examples including
+[模型上下文协议](https://modelcontextprotocol.io)的官方文档。
 
-- Guide pages
-- Navigation
-- Customizations
-- API Reference pages
-- Use of popular components
+有关详细的贡献指南、开发设置和故障排除，请参阅我们的[贡献指南](CONTRIBUTING.md)。
 
-### Development
+### 发布更改
 
-Install the [Mintlify CLI](https://www.npmjs.com/package/mintlify) to preview the documentation changes locally. To install, use the following command
-
-```
-npm i -g mintlify
-```
-
-Run the following command at the root of your documentation (where mint.json is)
-
-```
-mintlify dev
-```
-
-### Publishing Changes
-
-Install our Github App to auto propagate changes from your repo to your deployment. Changes will be deployed to production automatically after pushing to the default branch. Find the link to install on your dashboard. 
-
-#### Troubleshooting
-
-- Mintlify dev isn't running - Run `mintlify install` it'll re-install dependencies.
-- Page loads as a 404 - Make sure you are running in a folder with `mint.json`
+推送到默认分支后，更改将自动部署到生产环境。

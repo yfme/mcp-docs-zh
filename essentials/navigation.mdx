@@ -1,66 +1,56 @@
 ---
-title: 'Navigation'
-description: 'The navigation field in mint.json defines the pages that go in the navigation menu'
+title: '导航'
+description: 'mint.json 中的导航字段定义了导航菜单中的页面'
 icon: 'map'
 ---
 
-The navigation menu is the list of links on every website.
+导航菜单是每个网站都有的链接列表。
+每次添加新页面时，您都可能需要更新 `mint.json`。页面不会自动显示。
 
-You will likely update `mint.json` every time you add a new page. Pages do not show up automatically.
-
-## Navigation syntax
-
-Our navigation syntax is recursive which means you can make nested navigation groups. You don't need to include `.mdx` in page names.
+## 导航语法
+我们的导航语法是递归的，这意味着您可以创建嵌套的导航组。页面名称中不需要包含 `.mdx`。
 
 <CodeGroup>
-
-```json Regular Navigation
+```json 常规导航
 "navigation": [
     {
-        "group": "Getting Started",
+        "group": "入门指南",
         "pages": ["quickstart"]
     }
 ]
 ```
-
-```json Nested Navigation
+```json 嵌套导航
 "navigation": [
     {
-        "group": "Getting Started",
+        "group": "入门指南",
         "pages": [
             "quickstart",
             {
-                "group": "Nested Reference Pages",
+                "group": "嵌套参考页面",
                 "pages": ["nested-reference-page"]
             }
         ]
     }
 ]
 ```
-
 </CodeGroup>
 
-## Folders
-
-Simply put your MDX files in folders and update the paths in `mint.json`.
-
-For example, to have a page at `https://yoursite.com/your-folder/your-page` you would make a folder called `your-folder` containing an MDX file called `your-page.mdx`.
+## 文件夹
+只需将 MDX 文件放入文件夹中并更新 `mint.json` 中的路径即可。
+例如，要在 `https://yoursite.com/your-folder/your-page` 创建页面，您需要创建一个名为 `your-folder` 的文件夹，其中包含一个名为 `your-page.mdx` 的 MDX 文件。
 
 <Warning>
-
-You cannot use `api` for the name of a folder unless you nest it inside another folder. Mintlify uses Next.js which reserves the top-level `api` folder for internal server calls. A folder name such as `api-reference` would be accepted.
-
+除非将其嵌套在另一个文件夹中，否则不能使用 `api` 作为文件夹名称。Mintlify 使用 Next.js，它保留顶级 `api` 文件夹用于内部服务器调用。诸如 `api-reference` 之类的文件夹名称是可以接受的。
 </Warning>
 
-```json Navigation With Folder
+```json 带文件夹的导航
 "navigation": [
     {
-        "group": "Group Name",
+        "group": "组名称",
         "pages": ["your-folder/your-page"]
     }
 ]
 ```
 
-## Hidden Pages
-
-MDX files not included in `mint.json` will not show up in the sidebar but are accessible through the search bar and by linking directly to them.
+## 隐藏页面
+未包含在 `mint.json` 中的 MDX 文件不会显示在侧边栏中，但可以通过搜索栏和直接链接访问。

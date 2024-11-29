@@ -1,71 +1,104 @@
 ---
-title: Introduction
-description: 'Welcome to the home of your new documentation'
+title: 简介
+description: '开始使用模型上下文协议 (MCP)'
 ---
 
-<img
-  className="block dark:hidden"
-  src="/images/hero-light.svg"
-  alt="Hero Light"
-/>
-<img
-  className="hidden dark:block"
-  src="/images/hero-dark.svg"
-  alt="Hero Dark"
-/>
+模型上下文协议 (MCP) 是一个开放协议，可实现 LLM 应用与外部数据源和工具的无缝集成。无论您是在构建 AI 驱动的 IDE、增强聊天界面，还是创建自定义 AI 工作流，MCP 都提供了一种标准化的方式来连接 LLM 与所需的上下文。
 
-## Setting up
+## 开始使用 MCP
 
-The first step to world-class documentation is setting up your editing environments.
-
-<CardGroup cols={2}>
+选择最适合您需求的路径：
+<CardGroup cols={1}>
   <Card
-    title="Edit Your Docs"
-    icon="pen-to-square"
-    href="https://mintlify.com/docs/quickstart"
+    title="快速入门"
+    icon="bolt"
+    href="/quickstart"
   >
-    Get your docs set up locally for easy development
+    最快速地体验 MCP —— 将示例服务器连接到 Claude 桌面端
   </Card>
   <Card
-    title="Preview Changes"
-    icon="image"
-    href="https://mintlify.com/docs/development"
+    title="构建第一个服务器 (Python)"
+    icon="python"
+    href="/docs/first-server/python"
   >
-    Preview your changes before you push to make sure they're perfect
+    用 Python 创建简单的 MCP 服务器以了解基础知识
+  </Card>
+  <Card
+    title="构建第一个服务器 (TypeScript)"
+    icon="square-js"
+    href="/docs/first-server/typescript"
+  >
+    用 TypeScript 创建简单的 MCP 服务器以了解基础知识
   </Card>
 </CardGroup>
 
-## Make it yours
+## 开发工具
 
-Update your docs to your brand and add valuable content for the best user conversion.
-
+用于构建和调试 MCP 服务器的基本工具：
 <CardGroup cols={2}>
   <Card
-    title="Customize Style"
-    icon="palette"
-    href="https://mintlify.com/docs/settings/global"
-  >
-    Customize your docs to your company's colors and brands
+  title="调试指南"
+  icon="bug"
+  href="/docs/tools/debugging">
+    了解如何有效调试 MCP 服务器和集成
   </Card>
   <Card
-    title="Reference APIs"
-    icon="code"
-    href="https://mintlify.com/docs/api-playground/openapi"
+    title="MCP 检查器"
+    icon="magnifying-glass"
+    href="/docs/tools/inspector"
   >
-    Automatically generate endpoints from an OpenAPI spec
-  </Card>
-  <Card
-    title="Add Components"
-    icon="screwdriver-wrench"
-    href="https://mintlify.com/docs/components/accordion"
-  >
-    Build interactive features and designs to guide your users
-  </Card>
-  <Card
-    title="Get Inspiration"
-    icon="stars"
-    href="https://mintlify.com/customers"
-  >
-    Check out our showcase of our favorite documentation
+    使用我们的交互式调试工具测试和检查您的 MCP 服务器
   </Card>
 </CardGroup>
+
+## 探索 MCP
+
+深入了解 MCP 的核心概念和功能：
+<CardGroup cols={2}>
+  <Card
+    title="核心架构"
+    icon="sitemap"
+    href="/docs/concepts/architecture"
+  >
+    了解 MCP 如何连接客户端、服务器和 LLM
+  </Card>
+  <Card
+    title="资源"
+    icon="database"
+    href="/docs/concepts/resources"
+  >
+    从服务器向 LLM 提供数据和内容
+  </Card>
+  <Card
+    title="提示词"
+    icon="message"
+    href="/docs/concepts/prompts"
+  >
+    创建可重用的提示词模板和工作流
+  </Card>
+  <Card
+    title="工具"
+    icon="wrench"
+    href="/docs/concepts/tools"
+  >
+    让 LLM 通过您的服务器执行操作
+  </Card>
+  <Card
+    title="采样"
+    icon="robot"
+    href="/docs/concepts/sampling"
+  >
+    让您的服务器向 LLM 请求补全
+  </Card>
+  <Card
+    title="传输"
+    icon="network-wired"
+    href="/docs/concepts/transports"
+  >
+    了解 MCP 的通信机制
+  </Card>
+</CardGroup>
+
+## 贡献
+
+想要贡献？访问 GitHub 上的 [@modelcontextprotocol](https://github.com/modelcontextprotocol)，加入我们不断发展的 MCP 开发者社区。

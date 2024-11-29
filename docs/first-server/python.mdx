@@ -1,0 +1,825 @@
+---
+title: "Python"
+description: "15 分钟内创建一个简单的 Python MCP 服务器"
+---
+
+让我们构建你的第一个 Python MCP 服务器！我们将创建一个天气服务器，它提供当前天气数据作为资源，并让 Claude 使用工具获取天气预报。
+
+<Note>
+  本指南使用 OpenWeatherMap API。您需要一个来自 [OpenWeatherMap](https://openweathermap.org/api) 的免费 API 密钥才能继续操作。
+</Note>
+
+## 前提条件
+
+<Info>
+  以下步骤适用于 macOS。其他平台的指南即将推出。
+</Info>
+
+<Steps>
+  <Step title="安装 Python">
+    您需要 Python 3.10 或更高版本：
+    
+    ```bash
+    python --version  # 应为 3.10 或更高版本
+    ```
+  </Step>
+
+  <Step title="通过 homebrew 安装 uv">
+    更多信息请参见 https://docs.astral.sh/uv/。
+
+    ```bash
+    brew install uv
+    uv --version # 应为 0.4.18 或更高版本
+    ```
+  </Step>
+
+  <Step title="使用 MCP 项目创建器创建新项目">
+    ```bash
+    uvx create-mcp-server --path weather_service
+    cd weather_service
+    ```
+  </Step>
+
+  <Step title="安装额外的依赖项">
+    ```bash
+    uv add httpx python-dotenv
+    ```
+  </Step>
+
+  <Step title="设置环境">
+    创建 `.env`：
+
+    ```bash
+    OPENWEATHER_API_KEY=这里填写你的api密钥
+    ```
+  </Step>
+</Steps>
+
+## 创建服务器
+
+<Steps>
+  <Step title="添加基础导入和设置">
+  在 `weather_service/src/weather_service/server.py` 中：
+  ```python
+  import os
+  import json
+  import logging
+  from datetime import datetime, timedelta
+  from collections.abc import Sequence
+  from functools import lru_cache
+  from typing import Any
+
+  import httpx
+  import asyncio
+  from dotenv import load_dotenv
+  from mcp.server import Server
+  from mcp.types import (
+      Resource,
+      Tool,
+      TextContent,
+      ImageContent,
+      EmbeddedResource,
+      LoggingLevel
+  )
+  from pydantic import AnyUrl
+
+  # 加载环境变量
+  load_dotenv()
+
+  # 配置日志
+  logging.basicConfig(level=logging.INFO)
+  logger = logging.getLogger("weather-server")
+
+  # API 配置
+  API_KEY = os.getenv("OPENWEATHER_API_KEY")
+  if not API_KEY:
+      raise ValueError("需要 OPENWEATHER_API_KEY 环境变量")
+
+  API_BASE_URL = "http://api.openweathermap.org/data/2.5"
+  DEFAULT_CITY = "London"
+  CURRENT_WEATHER_ENDPOINT = "weather"
+  FORECAST_ENDPOINT = "forecast"
+
+  # 服务器实现的其余部分将放在这里
+  ```
+  </Step>
+
+  <Step title="添加天气获取功能">
+  添加以下功能：
+
+  ```python
+  # 创建可重用参数
+  http_params = {
+      "appid": API_KEY,
+      "units": "metric"
+  }
+
+  async def fetch_weather(city: str) -> dict[str, Any]:
+      async with httpx.AsyncClient() as client:
+          response = await client.get(
+              f"{API_BASE_URL}/weather",
+              params={"q": city, **http_params}
+          )
+          response.raise_for_status()
+          data = response.json()
+
+      return {
+          "temperature": data["main"]["temp"],
+          "conditions": data["weather"][0]["description"],
+          "humidity": data["main"]["humidity"],
+          "wind_speed": data["wind"]["speed"],
+          "timestamp": datetime.now().isoformat()
+      }
+
+
+  app = Server("weather-server")
+  ```
+  </Step>
+
+  <Step title="实现资源处理程序">
+    向主函数添加这些资源相关的处理程序：
+
+    ```python
+    app = Server("weather-server")
+
+    @app.list_resources()
+    async def list_resources() -> list[Resource]:
+        """列出可用的天气资源。"""
+        uri = AnyUrl(f"weather://{DEFAULT_CITY}/current")
+        return [
+            Resource(
+                uri=uri,
+                name=f"{DEFAULT_CITY} 的当前天气",
+                mimeType="application/json",
+                description="实时天气数据"
+            )
+        ]
+
+    @app.read_resource()
+    async def read_resource(uri: AnyUrl) -> str:
+        """读取城市的当前天气数据。"""
+        city = DEFAULT_CITY
+        if str(uri).startswith("weather://") and str(uri).endswith("/current"):
+            city = str(uri).split("/")[-2]
+        else:
+            raise ValueError(f"未知资源：{uri}")
+
+        try:
+            weather_data = await fetch_weather(city)
+            return json.dumps(weather_data, indent=2)
+        except httpx.HTTPError as e:
+            raise RuntimeError(f"天气 API 错误：{str(e)}")
+    ```
+  </Step>
+
+  <Step title="实现工具处理程序">
+    添加这些工具相关的处理程序：
+
+    ```python
+    app = Server("weather-server")
+
+    # 资源实现...
+
+    @app.list_tools()
+    async def list_tools() -> list[Tool]:
+        """列出可用的天气工具。"""
+        return [
+            Tool(
+                name="get_forecast",
+                description="获取城市的天气预报",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "city": {
+                            "type": "string",
+                            "description": "城市名称"
+                        },
+                        "days": {
+                            "type": "number",
+                            "description": "天数（1-5）",
+                            "minimum": 1,
+                            "maximum": 5
+                        }
+                    },
+                    "required": ["city"]
+                }
+            )
+        ]
+
+    @app.call_tool()
+    async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        """处理天气预报工具调用。"""
+        if name != "get_forecast":
+            raise ValueError(f"未知工具：{name}")
+
+        if not isinstance(arguments, dict) or "city" not in arguments:
+            raise ValueError("无效的预报参数")
+
+        city = arguments["city"]
+        days = min(int(arguments.get("days", 3)), 5)
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{API_BASE_URL}/{FORECAST_ENDPOINT}",
+                    params={
+                        "q": city,
+                        "cnt": days * 8,  # API 返回 3 小时间隔
+                        **http_params,
+                    }
+                )
+                response.raise_for_status()
+                data = response.json()
+
+            forecasts = []
+            for i in range(0, len(data["list"]), 8):
+                day_data = data["list"][i]
+                forecasts.append({
+                    "date": day_data["dt_txt"].split()[0],
+                    "temperature": day_data["main"]["temp"],
+                    "conditions": day_data["weather"][0]["description"]
+                })
+
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(forecasts, indent=2)
+                )
+            ]
+        except httpx.HTTPError as e:
+            logger.error(f"天气 API 错误：{str(e)}")
+            raise RuntimeError(f"天气 API 错误：{str(e)}")
+    ```
+  </Step>
+
+  <Step title="添加主函数">
+    在 `weather_service/src/weather_service/server.py` 末尾添加：
+
+    ```python
+    async def main():
+        # 在此处导入以避免事件循环问题
+        from mcp.server.stdio import stdio_server
+
+        async with stdio_server() as (read_stream, write_stream):
+            await app.run(
+                read_stream,
+                write_stream,
+                app.create_initialization_options()
+            )
+    ```
+  </Step>
+
+  <Step title="检查 __init__.py 中的入口点">
+    在 `weather_service/src/weather_service/__init__.py` 末尾添加：
+
+    ```python
+    from . import server
+    import asyncio
+
+    def main():
+       """包的主入口点。"""
+       asyncio.run(server.main())
+
+    # 可选：在包级别公开其他重要项
+    __all__ = ['main', 'server']
+    ```
+  </Step>
+</Steps>
+
+## 连接到 Claude 桌面应用
+
+<Steps>
+  <Step title="更新 Claude 配置">
+    添加到 `claude_desktop_config.json`：
+
+    ```json
+    {
+      "mcpServers": {
+        "weather": {
+          "command": "uv",
+          "args": [
+            "--directory",
+            "你的项目路径",
+            "run",
+            "weather-service"
+          ],
+          "env": {
+            "OPENWEATHER_API_KEY": "你的api密钥"
+          }
+        }
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="重启 Claude">
+    1. 完全退出 Claude
+
+    2. 重新启动 Claude
+
+    3. 在 🔌 菜单中查找你的天气服务器
+  </Step>
+</Steps>
+
+## 试一试！
+
+<AccordionGroup>
+  <Accordion title="查看当前天气" active>
+    问 Claude：
+
+    ```
+    旧金山现在的天气如何？你能分析一下天气状况，告诉我今天是否适合户外活动吗？
+    ```
+  </Accordion>
+
+  <Accordion title="获取天气预报">
+    问 Claude：
+
+    ```
+    你能帮我获取东京的五天天气预报，并帮我规划要带哪些衣服吗？
+    ```
+  </Accordion>
+
+  <Accordion title="比较天气">
+    问 Claude：
+
+    ```
+    你能分析一下东京和旧金山的天气预报，告诉我本周哪个城市更适合户外摄影吗？
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## 理解代码
+
+<Tabs>
+  <Tab title="类型提示">
+    ```python
+    async def read_resource(self, uri: str) -> ReadResourceResult:
+        # ...
+    ```
+
+    Python 类型提示有助于尽早发现错误并提高代码可维护性。
+  </Tab>
+
+  <Tab title="资源">
+    ```python
+    @app.list_resources()
+    async def list_resources(self) -> ListResourcesResult:
+        return ListResourcesResult(
+            resources=[
+                Resource(
+                    uri=f"weather://{DEFAULT_CITY}/current",
+                    name=f"{DEFAULT_CITY} 的当前天气",
+                    mimeType="application/json",
+                    description="实时天气数据"
+                )
+            ]
+        )
+    ```
+
+    资源提供 Claude 可以作为上下文访问的数据。
+  </Tab>
+
+  <Tab title="工具">
+    ```python
+    Tool(
+        name="get_forecast",
+        description="获取城市的天气预报",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "city": {
+                    "type": "string",
+                    "description": "城市名称"
+                },
+                "days": {
+                    "type": "number",
+                    "description": "天数（1-5）",
+                    "minimum": 1,
+                    "maximum": 5
+                }
+            },
+            "required": ["city"]
+        }
+    )
+    ```
+
+    工具让 Claude 能够通过你的服务器执行验证输入的操作。
+  </Tab>
+
+  <Tab title="服务器结构">
+    ```python
+    # 使用名称创建服务器实例
+    app = Server("weather-server")
+
+    # 注册资源处理程序
+    @app.list_resources()
+    async def list_resources() -> list[Resource]:
+        """列出可用资源"""
+        return [...]
+
+    # 注册工具处理程序
+    @app.call_tool()
+    async def call_tool(name: str, arguments: Any) -> Sequence[TextContent]:
+        """处理工具执行"""
+        return [...]
+
+    # 注册其他处理程序
+    @app.read_resource()
+    ...
+    @app.list_tools()
+    ...
+    ```
+
+    MCP 服务器使用简单的应用模式 - 创建一个 Server 实例并用装饰器注册处理程序。每个处理程序都映射到特定的 MCP 协议操作。
+  </Tab>
+</Tabs>
+
+## 最佳实践
+
+<CardGroup cols={1}>
+  <Card title="错误处理" icon="shield">
+    ```python
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(..., params={..., **http_params})
+            response.raise_for_status()
+    except httpx.HTTPError as e:
+        raise McpError(
+            ErrorCode.INTERNAL_ERROR,
+            f"API 错误：{str(e)}"
+        )
+    ```
+  </Card>
+
+  <Card title="类型验证" icon="check">
+    ```python
+    if not isinstance(args, dict) or "city" not in args:
+        raise McpError(
+            ErrorCode.INVALID_PARAMS,
+            "无效的预报参数"
+        )
+    ```
+  </Card>
+
+  <Card title="环境变量" icon="gear">
+    ```python
+    if not API_KEY:
+        raise ValueError("需要 OPENWEATHER_API_KEY")
+    ```
+  </Card>
+
+</CardGroup>
+
+## 可用的传输方式
+
+虽然本指南使用 stdio 传输，但 MCP 支持额外的传输选项：
+
+### SSE（服务器发送事件）
+
+```python
+from mcp.server.sse import SseServerTransport
+from starlette.applications import Starlette
+from starlette.routing import Route
+
+# 创建带有端点的 SSE 传输
+sse = SseServerTransport("/messages")
+
+# SSE 连接的处理程序
+async def handle_sse(scope, receive, send):
+    async with sse.connect_sse(scope, receive, send) as streams:
+        await app.run(
+            streams[0], streams[1], app.create_initialization_options()
+        )
+
+# 客户端消息的处理程序
+async def handle_messages(scope, receive, send):
+    await sse.handle_post_message(scope, receive, send)
+
+# 创建带有路由的 Starlette 应用
+app = Starlette(
+    debug=True,
+    routes=[
+        Route("/sse", endpoint=handle_sse),
+        Route("/messages", endpoint=handle_messages, methods=["POST"]),
+    ],
+)
+
+# 使用任何 ASGI 服务器运行
+import uvicorn
+uvicorn.run(app, host="0.0.0.0", port=8000)
+```
+
+## 高级功能
+
+<Steps>
+  <Step title="理解请求上下文">
+    请求上下文提供对当前请求元数据和活动客户端会话的访问。通过 `server.request_context` 访问：
+
+    ```python
+    @app.call_tool()
+    async def call_tool(name: str, arguments: Any) -> Sequence[TextContent]:
+        # 访问当前请求上下文
+        ctx = self.request_context
+
+        # 获取请求元数据，如进度令牌
+        if progress_token := ctx.meta.progressToken:
+            # 通过会话发送进度通知
+            await ctx.session.send_progress_notification(
+                progress_token=progress_token,
+                progress=0.5,
+                total=1.0
+            )
+
+        # 从 LLM 客户端采样
+        result = await ctx.session.create_message(
+            messages=[
+                SamplingMessage(
+                    role="user",
+                    content=TextContent(
+                        type="text",
+                        text="分析这个天气数据：" + json.dumps(arguments)
+                    )
+                )
+            ],
+            max_tokens=100
+        )
+
+        return [TextContent(type="text", text=result.content.text)]
+    ```
+  </Step>
+
+  <Step title="添加缓存">
+    ```python
+    # 缓存设置
+    cache_timeout = timedelta(minutes=15)
+    last_cache_time = None
+    cached_weather = None
+
+    async def fetch_weather(city: str) -> dict[str, Any]:
+        global cached_weather, last_cache_time
+
+        now = datetime.now()
+        if (cached_weather is None or
+            last_cache_time is None or
+            now - last_cache_time > cache_timeout):
+
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{API_BASE_URL}/{CURRENT_WEATHER_ENDPOINT}",
+                    params={"q": city, **http_params}
+                )
+                response.raise_for_status()
+                data = response.json()
+
+            cached_weather = {
+                "temperature": data["main"]["temp"],
+                "conditions": data["weather"][0]["description"],
+                "humidity": data["main"]["humidity"],
+                "wind_speed": data["wind"]["speed"],
+                "timestamp": datetime.now().isoformat()
+            }
+            last_cache_time = now
+
+        return cached_weather
+    ```
+  </Step>
+
+  <Step title="添加进度通知">
+    ```python
+    @self.call_tool()
+    async def call_tool(self, name: str, arguments: Any) -> CallToolResult:
+        if progress_token := self.request_context.meta.progressToken:
+            # 发送进度通知
+            await self.request_context.session.send_progress_notification(
+                progress_token=progress_token,
+                progress=1,
+                total=2
+            )
+
+            # 获取数据...
+
+            await self.request_context.session.send_progress_notification(
+                progress_token=progress_token,
+                progress=2,
+                total=2
+            )
+
+        # 方法实现的其余部分...
+    ```
+  </Step>
+
+  <Step title="添加日志支持">
+    ```python
+    # 设置日志
+    logger = logging.getLogger("weather-server")
+    logger.setLevel(logging.INFO)
+
+    @app.set_logging_level()
+    async def set_logging_level(level: LoggingLevel) -> EmptyResult:
+        logger.setLevel(level.upper())
+        await app.request_context.session.send_log_message(
+            level="info",
+            data=f"日志级别设置为 {level}",
+            logger="weather-server"
+        )
+        return EmptyResult()
+
+    # 在整个代码中使用 logger
+    # 例如：
+    # logger.info("成功获取天气数据")
+    # logger.error(f"获取天气数据出错：{str(e)}")
+    ```
+  </Step>
+
+  <Step title="添加资源模板">
+    ```python
+    @app.list_resource_templates()
+    async def list_resource_templates() -> list[ResourceTemplate]:
+        return [
+            ResourceTemplate(
+                uriTemplate="weather://{city}/current",
+                name="任意城市的当前天气",
+                mimeType="application/json"
+            )
+        ]
+    ```
+  </Step>
+</Steps>
+
+## 测试
+
+<Steps>
+  <Step title="创建测试文件">
+  创建 `tests/weather_test.py`：
+
+  ```python
+  import pytest
+  import os
+  from unittest.mock import patch, Mock
+  from datetime import datetime
+  import json
+  from pydantic import AnyUrl
+  os.environ["OPENWEATHER_API_KEY"] = "TEST"
+
+  from weather_service.server import (
+      fetch_weather,
+      read_resource,
+      call_tool,
+      list_resources,
+      list_tools,
+      DEFAULT_CITY
+  )
+
+  @pytest.fixture
+  def anyio_backend():
+      return "asyncio"
+
+  @pytest.fixture
+  def mock_weather_response():
+      return {
+          "main": {
+              "temp": 20.5,
+              "humidity": 65
+          },
+          "weather": [
+              {"description": "零散云朵"}
+          ],
+          "wind": {
+              "speed": 3.6
+          }
+      }
+
+  @pytest.fixture
+  def mock_forecast_response():
+      return {
+          "list": [
+              {
+                  "dt_txt": "2024-01-01 12:00:00",
+                  "main": {"temp": 18.5},
+                  "weather": [{"description": "晴天"}]
+              },
+              {
+                  "dt_txt": "2024-01-02 12:00:00",
+                  "main": {"temp": 17.2},
+                  "weather": [{"description": "多云"}]
+              }
+          ]
+      }
+
+  @pytest.mark.anyio
+  async def test_fetch_weather(mock_weather_response):
+      with patch('requests.Session.get') as mock_get:
+          mock_get.return_value.json.return_value = mock_weather_response
+          mock_get.return_value.raise_for_status = Mock()
+
+          weather = await fetch_weather("London")
+
+          assert weather["temperature"] == 20.5
+          assert weather["conditions"] == "零散云朵"
+          assert weather["humidity"] == 65
+          assert weather["wind_speed"] == 3.6
+          assert "timestamp" in weather
+
+  @pytest.mark.anyio
+  async def test_read_resource():
+      with patch('weather_service.server.fetch_weather') as mock_fetch:
+          mock_fetch.return_value = {
+              "temperature": 20.5,
+              "conditions": "晴朗",
+              "timestamp": datetime.now().isoformat()
+          }
+
+          uri = AnyUrl("weather://London/current")
+          result = await read_resource(uri)
+
+          assert isinstance(result, str)
+          assert "temperature" in result
+          assert "晴朗" in result
+
+  @pytest.mark.anyio
+  async def test_call_tool(mock_forecast_response):
+      class Response():
+          def raise_for_status(self):
+              pass
+
+          def json(self):
+              return mock_forecast_response
+
+      class AsyncClient():
+          def __aenter__(self):
+              return self
+
+          async def __aexit__(self, *exc_info):
+              pass
+
+          async def get(self, *args, **kwargs):
+              return Response()
+
+      with patch('httpx.AsyncClient', new=AsyncClient) as mock_client:
+          result = await call_tool("get_forecast", {"city": "London", "days": 2})
+
+          assert len(result) == 1
+          assert result[0].type == "text"
+          forecast_data = json.loads(result[0].text)
+          assert len(forecast_data) == 1
+          assert forecast_data[0]["temperature"] == 18.5
+          assert forecast_data[0]["conditions"] == "晴天"
+
+  @pytest.mark.anyio
+  async def test_list_resources():
+      resources = await list_resources()
+      assert len(resources) == 1
+      assert resources[0].name == f"{DEFAULT_CITY} 的当前天气"
+      assert resources[0].mimeType == "application/json"
+
+  @pytest.mark.anyio
+  async def test_list_tools():
+      tools = await list_tools()
+      assert len(tools) == 1
+      assert tools[0].name == "get_forecast"
+      assert "city" in tools[0].inputSchema["properties"]
+  ```
+  </Step>
+  
+  <Step title="运行测试">
+  ```bash
+  uv add --dev pytest
+  uv run pytest
+  ```
+  </Step>
+</Steps>
+
+## 故障排除
+
+### 安装问题
+
+```bash
+# 检查 Python 版本
+python --version
+
+# 重新安装依赖项
+uv sync --reinstall
+```
+
+### 类型检查
+
+```bash
+# 安装 mypy
+uv add --dev pyright
+
+# 运行类型检查器
+uv run pyright src
+```
+
+## 下一步
+
+<CardGroup cols={2}>
+  <Card title="架构概览" icon="sitemap" href="/docs/concepts/architecture">
+    了解更多关于 MCP 架构的信息
+  </Card>
+
+  <Card title="Python SDK" icon="python" href="https://github.com/modelcontextprotocol/python-sdk">
+    在 GitHub 上查看 Python SDK
+  </Card>
+</CardGroup>

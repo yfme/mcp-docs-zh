@@ -1,91 +1,68 @@
 {
   "$schema": "https://mintlify.com/schema.json",
-  "name": "Starter Kit",
+  "name": "模型上下文协议",
   "logo": {
     "dark": "/logo/dark.svg",
     "light": "/logo/light.svg"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "/favicon.svg", 
+  "theme": "quill",
   "colors": {
-    "primary": "#0D9373",
-    "light": "#07C983",
-    "dark": "#0D9373",
-    "anchors": {
-      "from": "#0D9373",
-      "to": "#07C983"
-    }
+    "primary": "#09090b",
+    "light": "#FAFAFA",
+    "dark": "#09090b"
   },
-  "topbarLinks": [
-    {
-      "name": "Support",
-      "url": "mailto:hi@mintlify.com"
-    }
-  ],
+  "topbarLinks": [],
   "topbarCtaButton": {
-    "name": "Dashboard",
-    "url": "https://dashboard.mintlify.com"
+    "name": "GitHub",
+    "url": "https://github.com/modelcontextprotocol"
   },
-  "tabs": [
-    {
-      "name": "API Reference",
-      "url": "api-reference"
-    }
-  ],
+  "search": {
+    "location": "top"
+  },
   "anchors": [
     {
-      "name": "Documentation",
-      "icon": "book-open-cover",
-      "url": "https://mintlify.com/docs"
+      "name": "Python SDK",
+      "icon": "python",
+      "url": "https://github.com/modelcontextprotocol/python-sdk"
     },
     {
-      "name": "Community",
-      "icon": "slack",
-      "url": "https://mintlify.com/community"
+      "name": "TypeScript SDK", 
+      "icon": "square-js",
+      "url": "https://github.com/modelcontextprotocol/typescript-sdk"
     },
     {
-      "name": "Blog",
-      "icon": "newspaper",
-      "url": "https://mintlify.com/blog"
+      "name": "规范",
+      "icon": "book",
+      "url": "https://spec.modelcontextprotocol.io"
     }
   ],
   "navigation": [
     {
-      "group": "Get Started",
-      "pages": [
-        "introduction",
-        "quickstart",
-        "development"
-      ]
+      "group": "入门",
+      "pages": ["introduction", "quickstart", "clients"]
     },
     {
-      "group": "Essentials",
-      "pages": [
-        "essentials/markdown",
-        "essentials/code",
-        "essentials/images",
-        "essentials/settings",
-        "essentials/navigation",
-        "essentials/reusable-snippets"
-      ]
+      "group": "你的第一个 MCP 服务器",
+      "pages": ["docs/first-server/python", "docs/first-server/typescript"]
     },
     {
-      "group": "API Documentation",
-      "pages": [
-        "api-reference/introduction"
-      ]
+      "group": "开发工具",
+      "pages": ["docs/tools/debugging", "docs/tools/inspector"]
     },
     {
-      "group": "Endpoint Examples",
+      "group": "概念",
       "pages": [
-        "api-reference/endpoint/get",
-        "api-reference/endpoint/create",
-        "api-reference/endpoint/delete"
+        "docs/concepts/architecture",
+        "docs/concepts/resources",
+        "docs/concepts/prompts",
+        "docs/concepts/tools",
+        "docs/concepts/sampling",
+        "docs/concepts/transports"
       ]
     }
   ],
   "footerSocials": {
-    "x": "https://x.com/mintlify",
-    "github": "https://github.com/mintlify",
-    "linkedin": "https://linkedin.com/company/mintlify"
+    "github": "https://github.com/modelcontextprotocol"
   }
 }
