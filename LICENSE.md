@@ -1,3 +1,15 @@
+# 知识共享署名 4.0 国际许可证
+
+本文档使用知识共享署名 4.0 国际许可证（CC BY 4.0）。您可以自由地：
+- 共享 — 以任何媒介或格式复制及散布本素材
+- 改编 — 重混、转换本素材及依本素材建立内容
+- 用于任何目的，包括商业用途
+
+惟须遵守下列条件：
+- 署名 — 您必须给予适当表彰、提供指向本许可证的链接，同时标明是否有作出修改。
+
+以下为原始英文许可证全文：
+
 Attribution 4.0 International
 
 =======================================================================
@@ -369,7 +381,7 @@ processes of any jurisdiction or authority.
 Creative Commons is not a party to its public
 licenses. Notwithstanding, Creative Commons may elect to apply one of
 its public licenses to material it publishes and in those instances
-will be considered the “Licensor.” The text of the Creative Commons
+will be considered the "Licensor." The text of the Creative Commons
 public licenses is dedicated to the public domain under the CC0 Public
 Domain Dedication. Except for the limited purpose of indicating that
 material is shared under a Creative Commons public license or as

@@ -1,6 +1,6 @@
 ---
 title: 调试
-description: 模型上下文协议 (MCP) 集成调试综合指南
+description: 模型上下文协议 (MCP) 集成的综合调试指南
 ---
 
 在开发 MCP 服务器或将其与应用程序集成时，有效的调试至关重要。本指南涵盖了 MCP 生态系统中可用的调试工具和方法。
@@ -11,64 +11,64 @@ description: 模型上下文协议 (MCP) 集成调试综合指南
 
 ## 调试工具概述
 
-MCP 提供了几种不同层面的调试工具：
+MCP 提供了几种不同级别的调试工具：
 
 1. **MCP 检查器**
    - 交互式调试界面
    - 直接服务器测试
-   - 详见[检查器指南](/docs/tools/inspector)
+   - 详情请参阅[检查器指南](/docs/tools/inspector)
 
 2. **Claude 桌面开发者工具**
    - 集成测试
    - 日志收集
-   - Chrome 开发者工具集成
+   - Chrome DevTools 集成
 
 3. **服务器日志**
    - 自定义日志实现
    - 错误跟踪
    - 性能监控
 
-## 在 Claude Desktop 中调试
+## 在 Claude 桌面应用中调试
 
 ### 检查服务器状态
 
 Claude.app 界面提供基本的服务器状态信息：
 
-1. 点击 🔌 图标查看：
+1. 点击 <img src="/images/claude-desktop-mcp-plug-icon.svg" style={{display: 'inline', margin: 0, height: '1.3em'}} /> 图标查看：
    - 已连接的服务器
-   - 可用的提示词和资源
+   - 可用的提示和资源
 
-2. 点击 🔨 图标查看：
+2. 点击 <img src="/images/claude-desktop-mcp-hammer-icon.svg" style={{display: 'inline', margin: 0, height: '1.3em'}} /> 图标查看：
    - 提供给模型的工具
 
 ### 查看日志
 
-查看 Claude Desktop 的详细 MCP 日志：
+从 Claude 桌面应用查看详细的 MCP 日志：
 
 ```bash
 # 实时跟踪日志
-tail -n 20 -f ~/Library/Logs/Claude/mcp*.log
+tail -n 20 -F ~/Library/Logs/Claude/mcp*.log
 ```
 
-日志记录了：
+日志捕获：
 - 服务器连接事件
 - 配置问题
 - 运行时错误
 - 消息交换
 
-### 使用 Chrome 开发者工具
+### 使用 Chrome DevTools
 
-在 Claude Desktop 中访问 Chrome 开发者工具来调查客户端错误：
+在 Claude 桌面应用中访问 Chrome 的开发者工具，以调查客户端错误：
 
-1. 启用开发者工具：
+1. 创建一个 `developer_settings.json` 文件，将 `allowDevTools` 设置为 true：
+
 ```bash
-jq '.allowDevTools = true' ~/Library/Application\ Support/Claude/developer_settings.json > tmp.json \
-  && mv tmp.json ~/Library/Application\ Support/Claude/developer_settings.json
+echo '{"allowDevTools": true}' > ~/Library/Application\ Support/Claude/developer_settings.json
 ```
 
-2. 打开开发者工具：`Command-Option-Shift-i`
+2. 打开 DevTools：`Command-Option-Shift-i`
 
-注意：您会看到两个开发者工具窗口：
+注意：您将看到两个 DevTools 窗口：
 - 主内容窗口
 - 应用标题栏窗口
 
@@ -80,9 +80,26 @@ jq '.allowDevTools = true' ~/Library/Application\ Support/Claude/developer_setti
 
 ## 常见问题
 
+### 工作目录
+
+在将 MCP 服务器与 Claude 桌面应用一起使用时：
+
+- 通过 `claude_desktop_config.json` 启动的服务器的工作目录可能未定义（如 macOS 上的 `/`），因为 Claude 桌面应用可能从任何地方启动
+- 始终在配置和 `.env` 文件中使用绝对路径，以确保可靠操作
+- 对于直接通过命令行测试服务器，工作目录将是运行命令的位置
+
+例如在 `claude_desktop_config.json` 中，使用：
+```json
+{
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/username/data"]
+}
+```
+而不是相对路径，如 `./data`
+
 ### 环境变量
 
-MCP 服务器默认只继承部分环境变量，如 `USER`、`HOME` 和 `PATH`。
+MCP 服务器自动继承环境变量的子集，如 `USER`、`HOME` 和 `PATH`。
 
 要覆盖默认变量或提供自己的变量，可以在 `claude_desktop_config.json` 中指定 `env` 键：
 
@@ -102,12 +119,13 @@ MCP 服务器默认只继承部分环境变量，如 `USER`、`HOME` 和 `PATH`�
 常见的初始化问题：
 
 1. **路径问题**
-   - 服务器可执行文件路径错误
+   - 服务器可执行文件路径不正确
    - 缺少必需文件
    - 权限问题
+   - 尝试为 `command` 使用绝对路径
 
 2. **配置错误**
-   - JSON 语法无效
+   - 无效的 JSON 语法
    - 缺少必需字段
    - 类型不匹配
 
@@ -118,31 +136,31 @@ MCP 服务器默认只继承部分环境变量，如 `USER`、`HOME` 和 `PATH`�
 
 ### 连接问题
 
-当服务器连接失败时：
+当服务器无法连接时：
 
-1. 检查 Claude Desktop 日志
-2. 验证服务器进程是否运行
-3. 使用[检查器](/docs/tools/inspector)进行独立测试
+1. 检查 Claude 桌面应用日志
+2. 验证服务器进程是否正在运行
+3. 使用[检查器](/docs/tools/inspector)独立测试
 4. 验证协议兼容性
 
 ## 实现日志记录
 
 ### 服务器端日志记录
 
-在构建使用本地 stdio [传输](/docs/concepts/transports)的服务器时，所有记录到 stderr（标准错误）的消息都会被宿主应用程序（如 Claude Desktop）自动捕获。
+在构建使用本地 stdio [传输](/docs/concepts/transports)的服务器时，所有记录到 stderr（标准错误）的消息将自动被主机应用程序（例如 Claude 桌面应用）捕获。
 
 <Warning>
   本地 MCP 服务器不应将消息记录到 stdout（标准输出），因为这会干扰协议操作。
 </Warning>
 
-对于所有[传输](/docs/concepts/transports)，您也可以通过发送日志消息通知向客户端提供日志：
+对于所有[传输](/docs/concepts/transports)，您还可以通过发送日志消息通知为客户端提供日志记录：
 
 <Tabs>
   <Tab title="Python">
     ```python
     server.request_context.session.send_log_message(
       level="info",
-      data="服务器启动成功",
+      data="服务器成功启动",
     )
     ```
   </Tab>
@@ -150,13 +168,13 @@ MCP 服务器默认只继承部分环境变量，如 `USER`、`HOME` 和 `PATH`�
     ```typescript
     server.sendLoggingMessage({
       level: "info",
-      data: "服务器启动成功",
+      data: "服务器成功启动",
     });
     ```
   </Tab>
 </Tabs>
 
-需要记录的重要事件：
+重要的需要记录的事件：
 - 初始化步骤
 - 资源访问
 - 工具执行
@@ -167,12 +185,12 @@ MCP 服务器默认只继承部分环境变量，如 `USER`、`HOME` 和 `PATH`�
 
 在客户端应用程序中：
 
-1. 启用调试日志
+1. 启用调试日志记录
 2. 监控网络流量
 3. 跟踪消息交换
 4. 记录错误状态
 
-## 调试工作流程
+## 调试工作流
 
 ### 开发周期
 
@@ -182,7 +200,7 @@ MCP 服务器默认只继承部分环境变量，如 `USER`、`HOME` 和 `PATH`�
    - 添加日志点
 
 2. 集成测试
-   - 在 Claude Desktop 中测试
+   - 在 Claude 桌面应用中测试
    - 监控日志
    - 检查错误处理
 
@@ -190,15 +208,15 @@ MCP 服务器默认只继承部分环境变量，如 `USER`、`HOME` 和 `PATH`�
 
 要高效测试更改：
 
-- **配置更改**：重启 Claude Desktop
+- **配置更改**：重启 Claude 桌面应用
 - **服务器代码更改**：使用 Command-R 重新加载
-- **快速迭代**：在开发期间使用[检查器](/docs/tools/inspector)
+- **快速迭代**：在开发过程中使用[检查器](/docs/tools/inspector)
 
 ## 最佳实践
 
 ### 日志策略
 
-1. **结构化日志**
+1. **结构化日志记录**
    - 使用一致的格式
    - 包含上下文
    - 添加时间戳
@@ -218,23 +236,23 @@ MCP 服务器默认只继承部分环境变量，如 `USER`、`HOME` 和 `PATH`�
 
 ### 安全考虑
 
-调试时：
+在调试时：
 
 1. **敏感数据**
-   - 清理日志
+   - 净化日志
    - 保护凭据
-   - 屏蔽个人信息
+   - 掩盖个人信息
 
 2. **访问控制**
    - 验证权限
-   - 检查身份验证
+   - 检查认证
    - 监控访问模式
 
 ## 获取帮助
 
-遇到问题时：
+当遇到问题时：
 
-1. **第一步**
+1. **首要步骤**
    - 检查服务器日志
    - 使用[检查器](/docs/tools/inspector)测试
    - 审查配置
@@ -250,7 +268,7 @@ MCP 服务器默认只继承部分环境变量，如 `USER`、`HOME` 和 `PATH`�
    - 重现步骤
    - 环境详情
 
-## 后续步骤
+## 下一步
 
 <CardGroup cols={2}>
   <Card

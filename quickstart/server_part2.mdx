@@ -1,0 +1,159 @@
+### 实现工具执行
+
+工具执行处理程序负责实际执行每个工具的逻辑。让我们添加它：
+
+```typescript
+// 注册天气工具
+server.tool(
+  "get-alerts",
+  "获取州的天气警报",
+  {
+    state: z.string().length(2).describe("两字母州代码（例如 CA, NY）"),
+  },
+  async ({ state }) => {
+    const stateCode = state.toUpperCase();
+    const alertsUrl = `${NWS_API_BASE}/alerts?area=${stateCode}`;
+    const alertsData = await makeNWSRequest<AlertsResponse>(alertsUrl);
+
+    if (!alertsData) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "获取警报数据失败",
+          },
+        ],
+      };
+    }
+
+    const features = alertsData.features || [];
+    if (features.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `${stateCode} 没有活动警报`,
+          },
+        ],
+      };
+    }
+
+    const formattedAlerts = features.map(formatAlert);
+    const alertsText = `${stateCode} 的活动警报：\n\n${formattedAlerts.join("\n")}`;
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: alertsText,
+        },
+      ],
+    };
+  },
+);
+
+server.tool(
+  "get-forecast",
+  "获取位置的天气预报",
+  {
+    latitude: z.number().min(-90).max(90).describe("位置的纬度"),
+    longitude: z.number().min(-180).max(180).describe("位置的经度"),
+  },
+  async ({ latitude, longitude }) => {
+    // 获取网格点数据
+    const pointsUrl = `${NWS_API_BASE}/points/${latitude.toFixed(4)},${longitude.toFixed(4)}`;
+    const pointsData = await makeNWSRequest<PointsResponse>(pointsUrl);
+
+    if (!pointsData) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `无法检索坐标的网格点数据：${latitude}, ${longitude}。NWS API 可能不支持此位置（仅支持美国位置）。`,
+          },
+        ],
+      };
+    }
+
+    const forecastUrl = pointsData.properties?.forecast;
+    if (!forecastUrl) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "无法从网格点数据获取预报 URL",
+          },
+        ],
+      };
+    }
+
+    // 获取预报数据
+    const forecastData = await makeNWSRequest<ForecastResponse>(forecastUrl);
+    if (!forecastData) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "无法检索预报数据",
+          },
+        ],
+      };
+    }
+
+    const periods = forecastData.properties?.periods || [];
+    if (periods.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "没有可用的预报时段",
+          },
+        ],
+      };
+    }
+
+    // 格式化预报时段
+    const formattedForecast = periods.map((period: ForecastPeriod) =>
+      [
+        `${period.name || "未知"}:`,
+        `温度: ${period.temperature || "未知"}°${period.temperatureUnit || "F"}`,
+        `风: ${period.windSpeed || "未知"} ${period.windDirection || ""}`,
+        `${period.shortForecast || "没有可用的预报"}`,
+        "---",
+      ].join("\n"),
+    );
+
+    const forecastText = `${latitude}, ${longitude} 的预报：\n\n${formattedForecast.join("\n")}`;
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: forecastText,
+        },
+      ],
+    };
+  },
+);
+```
+
+### 运行服务器
+
+最后，实现运行服务器的主函数：
+
+```typescript
+async function main() {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error("Weather MCP Server running on stdio");
+}
+
+main().catch((error) => {
+  console.error("Fatal error in main():", error);
+  process.exit(1);
+});
+```
+
+确保运行 `npm run build` 来构建您的服务器！这是让您的服务器连接的非常重要的步骤。
+
+现在让我们使用现有的 MCP 宿主 Claude for Desktop 测试您的服务器。

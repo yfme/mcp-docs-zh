@@ -3,11 +3,11 @@ title: "传输"
 description: "了解 MCP 的通信机制"
 ---
 
-模型上下文协议 (MCP) 中的传输为客户端和服务器之间的通信提供了基础。传输负责处理消息如何发送和接收的底层机制。
+模型上下文协议（MCP）中的传输为客户端和服务器之间的通信提供了基础。传输处理消息如何发送和接收的底层机制。
 
 ## 消息格式
 
-MCP 使用 [JSON-RPC](https://www.jsonrpc.org/) 2.0 作为传输格式。传输层负责将 MCP 协议消息转换为用于传输的 JSON-RPC 格式，并将接收到的 JSON-RPC 消息转换回 MCP 协议消息。
+MCP 使用 [JSON-RPC](https://www.jsonrpc.org/) 2.0 作为其线路格式。传输层负责将 MCP 协议消息转换为 JSON-RPC 格式进行传输，并将接收到的 JSON-RPC 消息转换回 MCP 协议消息。
 
 使用了三种类型的 JSON-RPC 消息：
 
@@ -48,15 +48,15 @@ MCP 使用 [JSON-RPC](https://www.jsonrpc.org/) 2.0 作为传输格式。传输�
 
 MCP 包含两种标准传输实现：
 
-### 标准输入/输出（stdio）
+### 标准输入/输出 (stdio)
 
 stdio 传输通过标准输入和输出流实现通信。这对于本地集成和命令行工具特别有用。
 
-使用场景：
+在以下情况使用 stdio：
 - 构建命令行工具
 - 实现本地集成
 - 需要简单的进程通信
-- 处理 shell 脚本
+- 使用 shell 脚本
 
 <Tabs>
   <Tab title="TypeScript (服务器)">
@@ -114,27 +114,43 @@ stdio 传输通过标准输入和输出流实现通信。这对于本地集成�
   </Tab>
 </Tabs>
 
-### 服务器发送事件（SSE）
+### 服务器发送事件 (SSE)
 
-SSE 传输支持服务器到客户端的流式传输，并使用 HTTP POST 请求进行客户端到服务器的通信。
+SSE 传输启用服务器到客户端的流式传输，客户端到服务器的通信则使用 HTTP POST 请求。
 
-使用场景：
+在以下情况使用 SSE：
 - 仅需要服务器到客户端的流式传输
 - 在受限网络中工作
-- 实现简单的更新
+- 实现简单更新
 
 <Tabs>
   <Tab title="TypeScript (服务器)">
     ```typescript
+    import express from "express";
+    
+    const app = express();
+    
     const server = new Server({
       name: "example-server",
       version: "1.0.0"
     }, {
       capabilities: {}
     });
+    
+    let transport: SSEServerTransport | null = null;
 
-    const transport = new SSEServerTransport("/message", response);
-    await server.connect(transport);
+    app.get("/sse", (req, res) => {
+      transport = new SSEServerTransport("/messages", res);
+      server.connect(transport);
+    });
+
+    app.post("/messages", (req, res) => {
+      if (transport) {
+        transport.handlePostMessage(req, res);
+      }
+    });
+
+    app.listen(3000);
     ```
   </Tab>
   <Tab title="TypeScript (客户端)">
@@ -187,11 +203,11 @@ SSE 传输支持服务器到客户端的流式传输，并使用 HTTP POST 请�
 
 ## 自定义传输
 
-MCP 让实现自定义传输变得简单。任何传输实现只需要符合传输接口：
+MCP 使实现特定需求的自定义传输变得容易。任何传输实现只需要符合传输接口：
 
 您可以为以下场景实现自定义传输：
 - 自定义网络协议
-- 专用通信通道
+- 专用通信渠道
 - 与现有系统集成
 - 性能优化
 
@@ -216,7 +232,8 @@ MCP 让实现自定义传输变得简单。任何传输实现只需要符合传�
     ```
   </Tab>
   <Tab title="Python">
-    注意：虽然 MCP 服务器通常使用 asyncio 实现，但我们建议使用 `anyio` 实现底层接口（如传输）以获得更广泛的兼容性。
+    注意，虽然 MCP 服务器通常使用 asyncio 实现，但我们建议
+    使用 `anyio` 实现底层接口如传输，以获得更广泛的兼容性。
     ```python
     @contextmanager
     async def create_transport(
@@ -226,9 +243,9 @@ MCP 让实现自定义传输变得简单。任何传输实现只需要符合传�
         """
         MCP 的传输接口。
 
-        参数：
-            read_stream：用于读取传入消息的流
-            write_stream：用于写入传出消息的流
+        Args:
+            read_stream: 用于读取传入消息的流
+            write_stream: 用于写入传出消息的流
         """
         async with anyio.create_task_group() as tg:
             try:
@@ -253,7 +270,7 @@ MCP 让实现自定义传输变得简单。任何传输实现只需要符合传�
 
 ## 错误处理
 
-传输实现应处理各种错误场景：
+传输实现应该处理各种错误场景：
 
 1. 连接错误
 2. 消息解析错误
@@ -280,7 +297,7 @@ MCP 让实现自定义传输变得简单。任何传输实现只需要符合传�
         try {
           // 发送逻辑
         } catch (error) {
-          this.onerror?.(new Error(`消息发送失败：${error}`));
+          this.onerror?.(new Error(`发送消息失败：${error}`));
           throw error;
         }
       }
@@ -288,7 +305,8 @@ MCP 让实现自定义传输变得简单。任何传输实现只需要符合传�
     ```
   </Tab>
   <Tab title="Python">
-    注意：虽然 MCP 服务器通常使用 asyncio 实现，但我们建议使用 `anyio` 实现底层接口（如传输）以获得更广泛的兼容性。
+  注意，虽然 MCP 服务器通常使用 asyncio 实现，但我们建议
+  使用 `anyio` 实现底层接口如传输，以获得更广泛的兼容性。
     ```python
     @contextmanager
     async def example_transport(scope: Scope, receive: Receive, send: Send):
@@ -303,13 +321,13 @@ MCP 让实现自定义传输变得简单。任何传输实现只需要符合传�
                         # 消息处理逻辑
                         pass
                 except Exception as exc:
-                    logger.error(f"消息处理失败：{exc}")
+                    logger.error(f"处理消息失败：{exc}")
                     raise exc
 
             async with anyio.create_task_group() as tg:
                 tg.start_soon(message_handler)
                 try:
-                    # 提供通信流
+                    # 提供流进行通信
                     yield read_stream, write_stream
                 except Exception as exc:
                     logger.error(f"传输错误：{exc}")
@@ -319,7 +337,7 @@ MCP 让实现自定义传输变得简单。任何传输实现只需要符合传�
                     await write_stream.aclose()
                     await read_stream.aclose()
         except Exception as exc:
-            logger.error(f"传输初始化失败：{exc}")
+            logger.error(f"初始化传输失败：{exc}")
             raise exc
     ```
   </Tab>
@@ -331,12 +349,12 @@ MCP 让实现自定义传输变得简单。任何传输实现只需要符合传�
 
 1. 正确处理连接生命周期
 2. 实现适当的错误处理
-3. 连接关闭时清理资源
-4. 使用适当的超时设置
-5. 发送前验证消息
+3. 在连接关闭时清理资源
+4. 使用适当的超时
+5. 在发送前验证消息
 6. 记录传输事件以便调试
-7. 适时实现重连逻辑
-8. 处理消息队列的背压
+7. 在适当时实现重连逻辑
+8. 处理消息队列中的背压
 9. 监控连接健康状况
 10. 实施适当的安全措施
 
@@ -346,27 +364,27 @@ MCP 让实现自定义传输变得简单。任何传输实现只需要符合传�
 
 ### 认证和授权
 - 实现适当的认证机制
-- 验证客户端凭证
+- 验证客户端凭据
 - 使用安全的令牌处理
 - 实现授权检查
 
 ### 数据安全
-- 网络传输使用 TLS
+- 对网络传输使用 TLS
 - 加密敏感数据
 - 验证消息完整性
 - 实现消息大小限制
-- 清理输入数据
+- 净化输入数据
 
 ### 网络安全
 - 实现速率限制
-- 使用适当的超时设置
+- 使用适当的超时
 - 处理拒绝服务场景
 - 监控异常模式
-- 实施适当的防火墙规则
+- 实现适当的防火墙规则
 
 ## 调试传输
 
-传输问题调试技巧：
+调试传输问题的提示：
 
 1. 启用调试日志
 2. 监控消息流

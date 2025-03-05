@@ -1,0 +1,479 @@
+@SpringBootApplication
+public class McpServerApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(McpServerApplication.class, args);
+	}
+
+	@Bean
+	public ToolCallbackProvider weatherTools(WeatherService weatherService) {
+		return MethodToolCallbackProvider.builder().toolObjects(weatherService).build();
+	}
+}
+```
+
+使用 `MethodToolCallbackProvider` 工具将 `@Tools` 转换为 MCP 服务器使用的可操作回调。
+
+### 运行服务器
+
+最后，让我们构建服务器：
+
+```bash
+./mvnw clean install
+```
+
+这将在 `target` 文件夹中生成一个 `mcp-weather-stdio-server-0.0.1-SNAPSHOT.jar` 文件。
+
+现在让我们使用现有的 MCP 宿主 Claude for Desktop 测试您的服务器。
+
+## 使用 Claude for Desktop 测试服务器
+
+<Note>
+Claude for Desktop 尚未在 Linux 上提供。
+</Note>
+
+首先，确保您已安装 Claude for Desktop。
+[您可以在这里安装最新版本](https://claude.ai/download)。如果您已经安装了 Claude for Desktop，**请确保它已更新到最新版本。**
+
+我们需要为您想要使用的任何 MCP 服务器配置 Claude for Desktop。
+为此，请在文本编辑器中打开您的 Claude for Desktop 应用程序配置，位于 `~/Library/Application Support/Claude/claude_desktop_config.json`。
+确保创建该文件（如果不存在）。
+
+例如，如果您已安装 [VS Code](https://code.visualstudio.com/)：
+
+<Tabs>
+  <Tab title="MacOS/Linux">
+  ```bash
+  code ~/Library/Application\ Support/Claude/claude_desktop_config.json
+  ```
+  </Tab>
+  <Tab title="Windows">
+  ```powershell
+  code $env:AppData\Claude\claude_desktop_config.json
+  ```
+  </Tab>
+</Tabs>
+
+然后，您将在 `mcpServers` 键中添加您的服务器。
+MCP UI 元素只有在至少有一个服务器正确配置时才会在 Claude for Desktop 中显示。
+
+在这种情况下，我们将像这样添加我们的单个天气服务器：
+
+<Tabs>
+  <Tab title="MacOS/Linux">
+  ```json java
+  {
+    "mcpServers": {
+      "spring-ai-mcp-weather": {
+        "command": "java",
+        "args": [
+          "-Dspring.ai.mcp.server.stdio=true",
+          "-jar",
+          "/ABSOLUTE/PATH/TO/PARENT/FOLDER/mcp-weather-stdio-server-0.0.1-SNAPSHOT.jar"
+        ]
+      }
+    }
+  }
+  ```
+  </Tab>
+
+  <Tab title="Windows">
+  ```json java
+  {
+    "mcpServers": {
+      "spring-ai-mcp-weather": {
+        "command": "java",
+        "args": [
+          "-Dspring.ai.mcp.server.transport=STDIO",
+          "-jar",
+          "C:\\ABSOLUTE\\PATH\\TO\\PARENT\\FOLDER\\weather\\mcp-weather-stdio-server-0.0.1-SNAPSHOT.jar"
+        ]
+      }
+    }
+  }
+  ```
+  </Tab>
+</Tabs>
+
+<Note>
+确保您传入服务器的绝对路径。
+</Note>
+
+这告诉 Claude for Desktop：
+1. 有一个名为 "my-weather-server" 的 MCP 服务器
+2. 通过运行 `java -jar /ABSOLUTE/PATH/TO/PARENT/FOLDER/mcp-weather-stdio-server-0.0.1-SNAPSHOT.jar` 启动它
+
+保存文件，然后重启 **Claude for Desktop**。
+
+## 使用 Java 客户端测试您的服务器
+
+### 手动创建 MCP 客户端
+
+使用 `McpClient` 连接到服务器：
+
+```java
+var stdioParams = ServerParameters.builder("java")
+  .args("-jar", "/ABSOLUTE/PATH/TO/PARENT/FOLDER/mcp-weather-stdio-server-0.0.1-SNAPSHOT.jar")
+  .build();
+
+var stdioTransport = new StdioClientTransport(stdioParams);
+
+var mcpClient = McpClient.sync(stdioTransport).build();
+
+mcpClient.initialize();
+
+ListToolsResult toolsList = mcpClient.listTools();
+
+CallToolResult weather = mcpClient.callTool(
+  new CallToolRequest("getWeatherForecastByLocation",
+      Map.of("latitude", "47.6062", "longitude", "-122.3321")));
+
+CallToolResult alert = mcpClient.callTool(
+  new CallToolRequest("getAlerts", Map.of("state", "NY")));
+
+mcpClient.closeGracefully();
+```
+
+### 使用 MCP 客户端引导启动器
+
+创建一个新的引导启动器应用程序，使用 `spring-ai-mcp-client-spring-boot-starter` 依赖：
+
+```xml
+<dependency>
+    <groupId>org.springframework.ai</groupId>
+    <artifactId>spring-ai-mcp-client-spring-boot-starter</artifactId>
+</dependency>
+```
+
+并将 `spring.ai.mcp.client.stdio.servers-configuration` 属性设置为指向您的 `claude_desktop_config.json`。
+您可以重用现有的 Anthropic Desktop 配置：
+
+```properties
+spring.ai.mcp.client.stdio.servers-configuration=file:PATH/TO/claude_desktop_config.json
+```
+
+当您启动客户端应用程序时，自动配置将自动从 claude_desktop_config.json 创建 MCP 客户端。
+
+有关更多信息，请参阅 [MCP 客户端引导启动器](https://docs.spring.io/spring-ai/reference/api/mcp/mcp-server-boot-client-docs.html) 参考文档。
+
+## 更多 Java MCP 服务器示例
+
+[starter-webflux-server](https://github.com/spring-projects/spring-ai-examples/tree/main/model-context-protocol/weather/starter-webflux-server) 展示了如何使用 SSE 传输创建 MCP 服务器。
+它展示了如何使用 Spring Boot 的自动配置功能定义和注册 MCP 工具、资源和提示。
+
+</Tab>
+</Tabs>
+。
+
+自动配置将自动将这些工具注册到 MCP 服务器中。
+
+### 创建您的引导应用程序
+
+```java
+@SpringBootApplication
+public class McpServerApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(McpServerApplication.class, args);
+	}
+
+	@Bean
+	public ToolCallbackProvider weatherTools(WeatherService weatherService) {
+		return MethodToolCallbackProvider.builder().toolObjects(weatherService).build();
+	}
+}
+```
+
+使用 `MethodToolCallbackProvider` 工具将 `@Tools` 转换为 MCP 服务器使用的可操作回调。
+
+### 运行服务器
+
+最后，让我们构建服务器：
+
+```bash
+./mvnw clean install
+```
+
+这将在 `target` 文件夹中生成一个 `mcp-weather-stdio-server-0.0.1-SNAPSHOT.jar` 文件。
+
+现在让我们使用现有的 MCP 宿主 Claude for Desktop 测试您的服务器。
+
+## 使用 Claude for Desktop 测试服务器
+
+<Note>
+Claude for Desktop 尚未在 Linux 上提供。
+</Note>
+
+首先，确保您已安装 Claude for Desktop。
+[您可以在这里安装最新版本](https://claude.ai/download)。如果您已经安装了 Claude for Desktop，**请确保它已更新到最新版本。**
+
+我们需要为您想要使用的任何 MCP 服务器配置 Claude for Desktop。
+为此，请在文本编辑器中打开您的 Claude for Desktop 应用程序配置，位于 `~/Library/Application Support/Claude/claude_desktop_config.json`。
+确保创建该文件（如果不存在）。
+
+例如，如果您已安装 [VS Code](https://code.visualstudio.com/)：
+
+<Tabs>
+  <Tab title="MacOS/Linux">
+  ```bash
+  code ~/Library/Application\ Support/Claude/claude_desktop_config.json
+  ```
+  </Tab>
+  <Tab title="Windows">
+  ```powershell
+  code $env:AppData\Claude\claude_desktop_config.json
+  ```
+  </Tab>
+</Tabs>
+
+然后，您将在 `mcpServers` 键中添加您的服务器。
+MCP UI 元素只有在至少有一个服务器正确配置时才会在 Claude for Desktop 中显示。
+
+在这种情况下，我们将像这样添加我们的单个天气服务器：
+
+<Tabs>
+  <Tab title="MacOS/Linux">
+  ```json java
+  {
+    "mcpServers": {
+      "spring-ai-mcp-weather": {
+        "command": "java",
+        "args": [
+          "-Dspring.ai.mcp.server.stdio=true",
+          "-jar",
+          "/ABSOLUTE/PATH/TO/PARENT/FOLDER/mcp-weather-stdio-server-0.0.1-SNAPSHOT.jar"
+        ]
+      }
+    }
+  }
+  ```
+  </Tab>
+
+  <Tab title="Windows">
+  ```json java
+  {
+    "mcpServers": {
+      "spring-ai-mcp-weather": {
+        "command": "java",
+        "args": [
+          "-Dspring.ai.mcp.server.transport=STDIO",
+          "-jar",
+          "C:\\ABSOLUTE\\PATH\\TO\\PARENT\\FOLDER\\weather\\mcp-weather-stdio-server-0.0.1-SNAPSHOT.jar"
+        ]
+      }
+    }
+  }
+  ```
+  </Tab>
+</Tabs>
+
+<Note>
+确保您传入服务器的绝对路径。
+</Note>
+
+这告诉 Claude for Desktop：
+1. 有一个名为 "my-weather-server" 的 MCP 服务器
+2. 通过运行 `java -jar /ABSOLUTE/PATH/TO/PARENT/FOLDER/mcp-weather-stdio-server-0.0.1-SNAPSHOT.jar` 启动它
+
+保存文件，然后重启 **Claude for Desktop**。
+
+## 使用 Java 客户端测试您的服务器
+
+### 手动创建 MCP 客户端
+
+使用 `McpClient` 连接到服务器：
+
+```java
+var stdioParams = ServerParameters.builder("java")
+  .args("-jar", "/ABSOLUTE/PATH/TO/PARENT/FOLDER/mcp-weather-stdio-server-0.0.1-SNAPSHOT.jar")
+  .build();
+
+var stdioTransport = new StdioClientTransport(stdioParams);
+
+var mcpClient = McpClient.sync(stdioTransport).build();
+
+mcpClient.initialize();
+
+ListToolsResult toolsList = mcpClient.listTools();
+
+CallToolResult weather = mcpClient.callTool(
+  new CallToolRequest("getWeatherForecastByLocation",
+      Map.of("latitude", "47.6062", "longitude", "-122.3321")));
+
+CallToolResult alert = mcpClient.callTool(
+  new CallToolRequest("getAlerts", Map.of("state", "NY")));
+
+mcpClient.closeGracefully();
+```
+
+### 使用 MCP 客户端引导启动器
+
+创建一个新的引导启动器应用程序，使用 `spring-ai-mcp-client-spring-boot-starter` 依赖：
+
+```xml
+<dependency>
+    <groupId>org.springframework.ai</groupId>
+    <artifactId>spring-ai-mcp-client-spring-boot-starter</artifactId>
+</dependency>
+```
+
+并将 `spring.ai.mcp.client.stdio.servers-configuration` 属性设置为指向您的 `claude_desktop_config.json`。
+您可以重用现有的 Anthropic Desktop 配置：
+
+```properties
+spring.ai.mcp.client.stdio.servers-configuration=file:PATH/TO/claude_desktop_config.json
+```
+
+当您启动客户端应用程序时，自动配置将自动从 claude_desktop_config.json 创建 MCP 客户端。
+
+有关更多信息，请参阅 [MCP 客户端引导启动器](https://docs.spring.io/spring-ai/reference/api/mcp/mcp-server-boot-client-docs.html) 参考文档。
+
+## 更多 Java MCP 服务器示例
+
+[starter-webflux-server](https://github.com/spring-projects/spring-ai-examples/tree/main/model-context-protocol/weather/starter-webflux-server) 展示了如何使用 SSE 传输创建 MCP 服务器。
+它展示了如何使用 Spring Boot 的自动配置功能定义和注册 MCP 工具、资源和提示。
+
+</Tab>
+</Tabs>
+
+### 测试命令
+
+让我们确保 Claude for Desktop 能识别我们在 `weather` 服务器中公开的两个工具。您可以通过查找锤子 <img src="/images/claude-desktop-mcp-hammer-icon.svg" style={{display: 'inline', margin: 0, height: '1.3em'}} /> 图标来实现：
+
+<Frame>
+  <img src="/images/visual-indicator-mcp-tools.png" />
+</Frame>
+
+点击锤子图标后，您应该能看到列出的两个工具：
+
+<Frame>
+  <img src="/images/available-mcp-tools.png" />
+</Frame>
+
+如果您的服务器未被 Claude for Desktop 识别，请继续查看[故障排除](#故障排除)部分获取帮助。
+
+## 在对话中使用工具
+
+现在，让我们向 Claude 询问天气信息，看看它是否能使用我们的工具：
+
+1. 打开 Claude for Desktop，确保您可以在右上角看到 MCP 图标 <img src="/images/claude-desktop-mcp-plug-icon.svg" style={{display: 'inline', margin: 0, height: '1.3em'}} />
+
+2. 向 Claude 询问：
+   ```
+   科罗拉多州现在有任何天气警报吗？
+   ```
+   
+   Claude 可能会回答它没有这方面的实时能力，但会提到它可以使用工具。如果是这样，请告诉它：
+   ```
+   请使用工具获取科罗拉多州的天气警报。
+   ```
+
+3. 这时您会看到 Claude 请求使用工具的提示：
+   
+   <Frame>
+     <img src="/images/quickstart-approve.png" />
+   </Frame>
+
+4. 点击"允许"，然后 Claude 将运行 `get-alerts` 工具并返回结果！
+
+5. 现在尝试另一个工具。询问：
+   ```
+   旧金山的天气预报如何？
+   ```
+   
+   同样，Claude 可能需要提示来使用工具：
+   ```
+   请使用工具获取旧金山（坐标 37.7749, -122.4194）的天气预报。
+   ```
+   
+6. 当 Claude 请求权限时点击"允许"，它将运行 `get-forecast` 工具并返回结果。
+
+恭喜！您已成功构建了一个 MCP 服务器，并让 Claude 使用它来获取天气信息！
+
+<Frame>
+  <img src="/images/quickstart-screenshot.png" />
+</Frame>
+
+## 故障排除
+
+### 服务器未被检测到
+
+如果您在 Claude for Desktop 中看不到 MCP 图标或您的工具，请尝试：
+
+1. **检查您的 `claude_desktop_config.json`**
+   - 确认文件路径正确
+   - 检查拼写错误
+   - 确保它是有效的 JSON（没有多余的逗号等）
+
+2. **检查服务器路径**
+   - 确保您使用的是**绝对路径**（以 `/` 或 `C:\` 开头）
+   - 对于 Python，请确认 `.py` 文件确实存在于指定位置
+   - 对于 Node，请确认 `build/index.js` 存在
+
+3. **启用开发者工具**
+   在 macOS 上：
+   - 创建配置：`echo '{"allowDevTools": true}' > ~/Library/Application\ Support/Claude/developer_settings.json`
+   - 关闭并重新打开 Claude
+   - 使用 Cmd+Option+Shift+I 打开开发者工具
+   - 检查控制台是否有错误
+
+4. **查看日志**
+   - 查看 MCP 日志：`tail -f ~/Library/Logs/Claude/mcp*`
+   - 这些日志可能会显示配置或路径问题
+
+### 验证服务器工作正常
+
+通过直接运行它来验证您的服务器是否正常工作：
+
+<Tabs>
+<Tab title="Python">
+```bash
+uv run weather.py
+```
+</Tab>
+<Tab title="Node">
+```bash
+node build/index.js
+```
+</Tab>
+<Tab title="Java">
+```bash
+java -jar target/mcp-weather-stdio-server-0.0.1-SNAPSHOT.jar
+```
+</Tab>
+</Tabs>
+
+如果它启动时没有错误，那么问题可能是 Claude 与它的连接。
+
+## 下一步
+
+<CardGroup cols={2}>
+  <Card
+    title="构建一个客户端"
+    icon="bolt"
+    href="/quickstart/client"
+  >
+    学习如何构建您自己的 MCP 客户端
+  </Card>
+  <Card
+    title="使用 MCP 示例服务器"
+    icon="grid"
+    href="/examples"
+  >
+    探索一系列预构建的 MCP 服务器
+  </Card>
+  <Card
+    title="了解 MCP 资源"
+    icon="database"
+    href="/docs/concepts/resources"
+  >
+    深入了解 MCP 资源
+  </Card>
+  <Card
+    title="了解 MCP 工具"
+    icon="wrench"
+    href="/docs/concepts/tools"
+  >
+    深入了解 MCP 工具
+  </Card>
+</CardGroup>
